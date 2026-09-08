@@ -48,6 +48,15 @@ func (c *Credentials) Write(w io.Writer, format Format) error {
 
 // writeEnvExport writes assignments for `eval $(awsdag ...)`.
 //
+// The values are not quoted, so that `$(awsdag ...)` works as well as the
+// eval. Command substitution does not remove quotes -- the shell splits the
+// result into words and runs them, and a quote left in there ends up as a
+// character in the value rather than as punctuation around it.
+//
+// What quoting was there to protect against is checked for instead. A value
+// the shell would act on is refused rather than exported, which is the same
+// guarantee without the two forms behaving differently.
+//
 // AWS_CREDENTIAL_EXPIRATION is not read by the SDKs, but without it there is
 // nothing in the shell to say how much of the session is left.
 func (c *Credentials) writeEnvExport(w io.Writer) error {
@@ -59,7 +68,11 @@ func (c *Credentials) writeEnvExport(w io.Writer) error {
 	}
 
 	for _, v := range vars {
-		if _, err := fmt.Fprintf(w, "export %s=%s\n", v[0], shellQuote(v[1])); err != nil {
+		if !shellSafe(v[1]) {
+			return fmt.Errorf("refusing to export %s: the value contains characters the shell would act on", v[0])
+		}
+
+		if _, err := fmt.Fprintf(w, "export %s=%s\n", v[0], v[1]); err != nil {
 			return err
 		}
 	}
@@ -81,10 +94,30 @@ func (c *Credentials) writeJSON(w io.Writer) error {
 	})
 }
 
-// shellQuote wraps a value so the shell reads it back unchanged.
+// shellSafe reports whether a value survives an unquoted assignment as
+// itself.
 //
-// The values AWS issues have never needed it, but they are going to be eval'd,
-// and a value that decides what the shell runs is not one to take on trust.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+// The set is everything the credentials are made of and nothing else: base64
+// for the keys and the session token, and RFC 3339 for the expiry. Nothing in
+// it is punctuation to the shell, so there is no whitespace to split on, no
+// expansion to trigger and no glob to match.
+//
+// An allow list rather than a list of characters to watch for: the values are
+// about to be eval'd, and the one that decides what the shell runs is the one
+// nobody thought of.
+func shellSafe(s string) bool {
+	if s == "" {
+		return false
+	}
+
+	return strings.IndexFunc(s, func(r rune) bool {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			return false
+		case strings.ContainsRune("+/=_.:,-@%", r):
+			return false
+		default:
+			return true
+		}
+	}) < 0
 }

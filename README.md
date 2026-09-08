@@ -115,14 +115,25 @@ The prompts go to standard error and the credentials to standard output, so
 `eval $(awsdag)` reads the credentials without swallowing the instructions you
 have to act on.
 
-`-o env-export`, the default, writes assignments to be eval'd:
+`-o env-export`, the default, writes assignments:
 
 ```sh
-export AWS_ACCESS_KEY_ID='ASIA...'
-export AWS_SECRET_ACCESS_KEY='...'
-export AWS_SESSION_TOKEN='...'
-export AWS_CREDENTIAL_EXPIRATION='2026-09-08T13:00:00Z'
+export AWS_ACCESS_KEY_ID=ASIA...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_SESSION_TOKEN=...
+export AWS_CREDENTIAL_EXPIRATION=2026-09-08T13:00:00Z
 ```
+
+They are unquoted, so `$(awsdag -p dev)` works as well as `eval $(awsdag -p
+dev)`. Command substitution does not remove quotes: the shell splits the result
+into words and runs them, so a quoted value would arrive with the quotes still
+part of it.
+
+Since the values are going to be run, each is checked before it is written.
+Anything the shell would read as punctuation rather than as part of the value
+is refused instead of exported. Credentials never contain such a character —
+the keys and the token are base64, the expiry is RFC 3339 — so this is a check
+that should never fire.
 
 `-o json` writes what `credential_process` reads, so the same command can be
 wired into `~/.aws/config` instead:
