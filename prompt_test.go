@@ -71,6 +71,28 @@ func TestChoose_NoAnswer(t *testing.T) {
 	assert.ErrorContains(t, err, "no selection was made")
 }
 
+func TestChoose_ListingFails(t *testing.T) {
+	_, err := awsdag.Choose(strings.NewReader("1\n"), &errWriter{}, "Role", []string{"a", "b"}, identity)
+
+	assert.ErrorContains(t, err, "broken pipe")
+}
+
+func TestChoose_PromptFails(t *testing.T) {
+	// The two items print, then the terminal goes away before the question
+	// itself does.
+	_, err := awsdag.Choose(strings.NewReader("1\n"), &errWriter{ok: 2}, "Role", []string{"a", "b"}, identity)
+
+	assert.ErrorContains(t, err, "broken pipe")
+}
+
+func TestChoose_ReadFails(t *testing.T) {
+	// A closed terminal is not the same as an unanswered question, so the
+	// reason comes back rather than being reported as no selection.
+	_, err := awsdag.Choose(errReader{}, &bytes.Buffer{}, "Role", []string{"a", "b"}, identity)
+
+	assert.ErrorContains(t, err, "input closed")
+}
+
 func TestChoose_Accounts(t *testing.T) {
 	out := &bytes.Buffer{}
 
