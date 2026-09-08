@@ -14,16 +14,3 @@ archives:
   - format_overrides:
       - goos: windows
         formats: [zip]
-homebrew_casks:
-  - repository:
-      owner: winebarrel
-      name: homebrew-awsdag
-    homepage: https://github.com/winebarrel/awsdag
-    description: Sign in to AWS IAM Identity Center from a machine with no browser.
-    license: CC0-1.0
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/awsdag"]
-          end
