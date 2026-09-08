@@ -28,23 +28,66 @@ go install github.com/winebarrel/awsdag/cmd/awsdag@latest
 ## Usage
 
 ```
-Usage: awsdag --start-url=STRING --region=STRING [flags]
+Usage: awsdag [flags]
 
 Sign in to AWS IAM Identity Center from a machine with no browser.
 
 Flags:
   -h, --help                   Show context-sensitive help.
       --version
-  -u, --start-url=STRING       AWS access portal URL of the IAM Identity Center
-                               instance ($AWSDAG_START_URL).
-  -r, --region=STRING          Region the Identity Center instance is in
-                               ($AWSDAG_REGION).
+  -p, --profile="default"      Profile to take the Identity Center settings from
+                               ($AWS_PROFILE).
   -o, --output="env-export"    Credential format: env-export or json
                                ($AWSDAG_OUTPUT).
 ```
 
 ```
-$ eval $(awsdag -u https://d-1234567890.awsapps.com/start -r us-east-1)
+$ eval $(awsdag -p dev)
+Open the following URL in a browser and confirm the code:
+
+  https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-EFGH
+  ABCD-EFGH
+```
+
+Where to sign in comes from `~/.aws/config`. A host that has one has already
+been told, and passing the start URL on the command line would be answering a
+question the file has answered. Without `-p` the profile comes from
+`AWS_PROFILE`, then `default`, as it does everywhere else.
+
+```ini
+[sso-session my-sso]
+sso_start_url = https://d-1234567890.awsapps.com/start
+sso_region = us-east-1
+sso_registration_scopes = sso:account:access
+
+[profile dev]
+sso_session = my-sso
+sso_account_id = 111122223333
+sso_role_name = PowerUserAccess
+```
+
+The file is laid out along the same seam as the flow: the `[sso-session]` holds
+the two things signing in needs, and the profile that names it holds the two
+`GetRoleCredentials` needs. So a profile like the one above means no questions
+at all.
+
+Only the file is read: credentials are not resolved and nothing is called,
+which matters because the sign-in it supplies the settings for has not happened
+yet. The older layout, where a profile carries `sso_start_url` and `sso_region`
+itself, is read too.
+
+### When the profile does not say
+
+A profile with a session and no `sso_account_id` answers where to sign in and
+leaves the rest to be asked:
+
+```ini
+[profile my-sso]
+sso_session = my-sso
+```
+
+```
+$ eval $(awsdag -p my-sso)
 Open the following URL in a browser and confirm the code:
 
   https://device.sso.us-east-1.amazonaws.com/?user_code=ABCD-EFGH
@@ -58,28 +101,13 @@ Account [1-2]: 1
 Role [1-2]: 2
 ```
 
-The start URL and the region are the only things that have to be supplied. They
-are the only things that cannot be worked out: nothing on a bare machine says
-which organization's portal to sign in to, and the region of the Identity
-Center instance is not the region you intend to work in — the two are often
-different.
+The choices come from `ListAccounts` and `ListAccountRoles` — the same list the
+AWS access portal shows — so there is no account ID to look up and type. A
+single account, or a single permission set within one, is taken without asking.
 
-Which account and which permission set are asked afterwards, from the list the
-sign-in itself produces. That is the same list the AWS access portal shows, so
-there is no account ID to look up and type. A single account, or a single
-permission set within one, is taken without asking.
-
-Both values also come from the environment, which is worth setting once in the
-shell profile of a host you sign in to often:
-
-```sh
-export AWSDAG_START_URL=https://d-1234567890.awsapps.com/start
-export AWSDAG_REGION=us-east-1
-```
-
-```
-$ eval $(awsdag)
-```
+This is worth knowing about even with a fully specified profile: one sign-in
+covers every account and permission set assigned to you, so a profile naming
+only the session is enough to reach all of them.
 
 ### Output
 
@@ -128,6 +156,13 @@ roles, err := session.Roles(ctx, accounts[0].ID)
 creds, err := session.Credentials(ctx, accounts[0].ID, roles[0])
 ```
 
+`LoadProfile` reads the settings out of `~/.aws/config` without resolving
+anything, for a caller that wants the same source the command uses:
+
+```go
+profile, err := awsdag.LoadProfile(ctx, "dev")
+```
+
 A session is an access token for the Identity Center instance as a whole, not
 for any one account. Every account and permission set assigned to you can be
 exchanged through it, as many times as you like, without going back to a
@@ -142,7 +177,8 @@ hands out.
 2. `StartDeviceAuthorization` returns the URL and the code to approve.
 3. `CreateToken` is polled until someone approves them, backing off when the
    service asks it to, and giving up when the code expires.
-4. `ListAccounts` and `ListAccountRoles` produce the choices.
+4. `ListAccounts` and `ListAccountRoles` produce the choices, unless a
+   profile already answered them.
 5. `GetRoleCredentials` exchanges the answer for short-term credentials.
 
 The credentials last as long as the session duration of the permission set — an

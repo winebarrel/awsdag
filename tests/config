@@ -1,0 +1,23 @@
+[sso-session my-sso]
+sso_start_url = https://d-1234567890.awsapps.com/start
+sso_region = us-east-1
+sso_registration_scopes = sso:account:access
+
+[profile dev]
+sso_session = my-sso
+sso_account_id = 111122223333
+sso_role_name = PowerUserAccess
+region = ap-northeast-1
+
+[profile signin-only]
+sso_session = my-sso
+
+[profile legacy]
+sso_start_url = https://d-0987654321.awsapps.com/start
+sso_region = eu-west-1
+sso_account_id = 444455556666
+sso_role_name = ReadOnlyAccess
+
+[profile keys]
+aws_access_key_id = AKIAEXAMPLE
+aws_secret_access_key = secret
