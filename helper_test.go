@@ -2,6 +2,7 @@ package awsdag_test
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sso"
@@ -117,4 +118,28 @@ type sleeper struct {
 
 func (s *sleeper) sleep(d time.Duration) {
 	s.waited = append(s.waited, d)
+}
+
+// errWriter fails on the writes after the first ok of them, which is how a
+// terminal that has gone away behaves partway through a prompt.
+type errWriter struct {
+	ok int
+}
+
+func (w *errWriter) Write(p []byte) (int, error) {
+	if w.ok > 0 {
+		w.ok--
+
+		return len(p), nil
+	}
+
+	return 0, errors.New("broken pipe")
+}
+
+// errReader fails rather than reaching end of input, which a closed terminal
+// does and an empty string does not.
+type errReader struct{}
+
+func (errReader) Read([]byte) (int, error) {
+	return 0, errors.New("input closed")
 }

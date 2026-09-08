@@ -46,6 +46,15 @@ func TestWrite_JSON(t *testing.T) {
 	}`, out.String())
 }
 
+func TestWrite_EnvExport_WriteFails(t *testing.T) {
+	// Two of the four assignments land before the pipe breaks. Reporting that
+	// matters more than usual here: a caller that eval'd a truncated set of
+	// exports would have the key without the session token.
+	err := issued.Write(&errWriter{ok: 2}, awsdag.EnvExport)
+
+	assert.ErrorContains(t, err, "broken pipe")
+}
+
 func TestWrite_UnknownFormat(t *testing.T) {
 	err := issued.Write(&bytes.Buffer{}, awsdag.Format("yaml"))
 
