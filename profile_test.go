@@ -84,34 +84,3 @@ func TestLoadProfile_Missing(t *testing.T) {
 
 	assert.ErrorContains(t, err, "failed to load the profile nope")
 }
-
-func TestMerge(t *testing.T) {
-	assert := assert.New(t)
-
-	profile := &awsdag.Profile{
-		StartURL:  "https://d-1234567890.awsapps.com/start",
-		Region:    "us-east-1",
-		AccountID: "111122223333",
-		Role:      "PowerUserAccess",
-	}
-
-	// A flag beats the file.
-	assert.Equal(&awsdag.Profile{
-		StartURL:  "https://d-0987654321.awsapps.com/start",
-		Region:    "eu-west-1",
-		AccountID: "444455556666",
-		Role:      "ReadOnlyAccess",
-	}, profile.Merge(&awsdag.Profile{
-		StartURL:  "https://d-0987654321.awsapps.com/start",
-		Region:    "eu-west-1",
-		AccountID: "444455556666",
-		Role:      "ReadOnlyAccess",
-	}))
-
-	// An absent flag leaves the file alone, rather than blanking it.
-	assert.Equal(profile, profile.Merge(&awsdag.Profile{}))
-	assert.Equal(profile, profile.Merge(nil))
-
-	// The original is not touched, so a caller can merge more than once.
-	assert.Equal("us-east-1", profile.Region)
-}

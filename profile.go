@@ -53,31 +53,3 @@ func LoadProfile(ctx context.Context, name string, optFns ...func(*config.LoadSh
 
 	return profile, nil
 }
-
-// Merge returns the profile with anything over supplies taking precedence,
-// so that a flag beats what the file says and an absent flag leaves it alone.
-func (p *Profile) Merge(over *Profile) *Profile {
-	merged := *p
-
-	if over == nil {
-		return &merged
-	}
-
-	if over.StartURL != "" {
-		merged.StartURL = over.StartURL
-	}
-
-	if over.Region != "" {
-		merged.Region = over.Region
-	}
-
-	if over.AccountID != "" {
-		merged.AccountID = over.AccountID
-	}
-
-	if over.Role != "" {
-		merged.Role = over.Role
-	}
-
-	return &merged
-}
