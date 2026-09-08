@@ -1,6 +1,7 @@
 # awsdag
 
 [![CI](https://github.com/winebarrel/awsdag/actions/workflows/ci.yml/badge.svg)](https://github.com/winebarrel/awsdag/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/winebarrel/awsdag/graph/badge.svg?token=nFk1m2VrST)](https://codecov.io/gh/winebarrel/awsdag)
 [![AI Generated](https://img.shields.io/badge/AI%20Generated-Claude-orange?logo=anthropic)](https://claude.ai/claude-code)
 
 Sign in to AWS IAM Identity Center from a machine with no browser.
