@@ -3,6 +3,7 @@ package awsdag
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sso"
@@ -77,4 +78,45 @@ func (s *Session) Roles(ctx context.Context, accountID string) ([]string, error)
 	}
 
 	return roles, nil
+}
+
+// ChooseAccount settles which account to use.
+//
+// A known account is taken as it is. Listing to check that it is assigned
+// would put a call in front of the one that matters and only move the same
+// failure earlier, since GetRoleCredentials refuses an account nobody gave
+// the user anyway.
+func (s *Session) ChooseAccount(ctx context.Context, in io.Reader, out io.Writer, known string) (string, error) {
+	if known != "" {
+		return known, nil
+	}
+
+	accounts, err := s.Accounts(ctx)
+
+	if err != nil {
+		return "", err
+	}
+
+	account, err := Choose(in, out, "Account", accounts, Account.String)
+
+	if err != nil {
+		return "", err
+	}
+
+	return account.ID, nil
+}
+
+// ChooseRole settles which permission set to use in an account.
+func (s *Session) ChooseRole(ctx context.Context, in io.Reader, out io.Writer, accountID, known string) (string, error) {
+	if known != "" {
+		return known, nil
+	}
+
+	roles, err := s.Roles(ctx, accountID)
+
+	if err != nil {
+		return "", err
+	}
+
+	return Choose(in, out, "Role", roles, func(role string) string { return role })
 }

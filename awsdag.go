@@ -16,7 +16,7 @@ package awsdag
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sso"
@@ -84,11 +84,11 @@ type Session struct {
 // browser, and gives up when the code expires or ctx is cancelled.
 func Auth(ctx context.Context, opts *Options) (*Session, error) {
 	if opts.StartURL == "" {
-		return nil, fmt.Errorf("no start URL")
+		return nil, errors.New("no start URL")
 	}
 
 	if opts.Region == "" {
-		return nil, fmt.Errorf("no region")
+		return nil, errors.New("no region")
 	}
 
 	oidc := opts.OIDC
