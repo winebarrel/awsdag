@@ -1,0 +1,26 @@
+.PHONY: all
+all: vet test build
+
+.PHONY: build
+build:
+	go build ./cmd/awsdag
+
+.PHONY: vet
+vet:
+	go vet ./...
+
+.PHONY: lint
+lint:
+	golangci-lint run
+
+.PHONY: test
+test:
+	go test -v -count=1 ./...
+
+.PHONY: cover
+cover:
+	go test -v -count=1 -coverprofile=coverage.txt -covermode=atomic ./...
+
+.PHONY: clean
+clean:
+	rm -f awsdag awsdag.exe coverage.txt
